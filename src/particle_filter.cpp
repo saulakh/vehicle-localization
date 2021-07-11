@@ -31,7 +31,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
    * NOTE: Consult particle_filter.h for more information about this method 
    *   (and others in this file).
    */
-  num_particles = 50;  // TODO: Set the number of particles
+  num_particles = 100;  // TODO: Set the number of particles
   
   // From Lesson 5
   std::default_random_engine gen;
