@@ -41,7 +41,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   normal_distribution<double> dist_y(y, std[1]);
   normal_distribution<double> dist_theta(theta, std[2]);
   
-  for (int i = 0; i < num_particles; ++i) {
+  for (int i = 0; i < num_particles; i++) {
     Particle particle; // Structure from particle_filter.h
     particle.id = i;
     particle.x = dist_x(gen);
@@ -50,7 +50,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     particle.weight = 1.0;
     
     particles.push_back(particle);
-    
     weights.push_back(1.0);
   }
   
@@ -80,14 +79,14 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
     if (fabs(yaw_rate) < 0.0001) {
       
       // Equations from Lesson 8, if yaw rate is nonzero
-      particles[i].x += velocity*delta_t*cos(particles[i].theta);
-      particles[i].y += velocity*delta_t*sin(particles[i].theta);
-      //particles[i].theta = particles[i].theta;
+      particles[i].x += velocity * delta_t * cos(particles[i].theta);
+      particles[i].y += velocity * delta_t* sin(particles[i].theta);
+      particles[i].theta = particles[i].theta;
     }
     else {
-      particles[i].x += (velocity/yaw_rate) * (sin(particles[i].theta + yaw_rate*delta_t) - sin(particles[i].theta));
-      particles[i].y += (velocity/yaw_rate) * (cos(particles[i].theta) - cos(particles[i].theta + yaw_rate*delta_t));
-      particles[i].theta += yaw_rate*delta_t;
+      particles[i].x += (velocity / yaw_rate) * (sin(particles[i].theta + yaw_rate*delta_t) - sin(particles[i].theta));
+      particles[i].y += (velocity / yaw_rate) * (cos(particles[i].theta) - cos(particles[i].theta + yaw_rate*delta_t));
+      particles[i].theta += (yaw_rate * delta_t);
     }
     
     // Add noise to particles
@@ -111,19 +110,21 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted_landmarks,
   
   /*
   
-  double min_dist = std::numeric_limits<double>::max();
-  double closest_landmark = -1;
+  // Inputs the possible landmarks for one particle, and its observations
+  // Assigns closest landmark for each observation
   
   // Loop through transformed observations
   for (unsigned int i = 0; i < tr_observations.size(); i++) {
-    LandmarkObs obs = tr_observations[i];
+    LandmarkObs tr_obs = tr_observations[i];
+    double min_dist = std::numeric_limits<double>::max();
+    double closest_landmark = -1;
     
     // Loop through predicted landmarks
     for (unsigned int j = 0; j < predicted_landmarks.size(); j++) {
       LandmarkObs pred = predicted_landmarks[i];
       
       // Find distance between observation and prediction
-      double current_dist = dist(obs.x, obs.y, pred.x, pred.y);
+      double current_dist = dist(tr_obs.x, tr_obs.y, pred.x, pred.y);
       
       // If closest so far, update min_dist and closest_landmark
       if (current_dist < min_dist) {
@@ -134,7 +135,6 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted_landmarks,
     
     // Assign observed measurement to this landmark
     tr_observations[i].id = closest_landmark;
-    cout << "closest landmark from data association loop: " << closest_landmark << endl;
   }
   */
 }
@@ -160,26 +160,20 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
   for (int p=0; p < num_particles; p++) {
     
     particles[p].weight = 1.0;
-  
-    // Create predictions vector for data association
-    //vector<LandmarkObs> predictions;
-  
+
     // Tranforming observations from vehicle's frame to particle's frame
     for (unsigned int i = 0; i < observations.size(); i++) {
       // LandmarkObs structure: (id, x, y) from helper_functions.h
       vector<LandmarkObs> transformed_obs;
       LandmarkObs tr_obs;
-      //int association = 0;
+      int association = -1;
+      double min_dist = sensor_range;
     
       // Using equations from Lesson 16
-      tr_obs.x = particles[p].x + (observations[i].x*cos(particles[p].theta)) - (observations[i].y*sin(particles[p].theta));
-      tr_obs.y = particles[p].y + (observations[i].x*sin(particles[p].theta)) + (observations[i].y*cos(particles[p].theta));
+      tr_obs.x = particles[p].x + (observations[i].x * cos(particles[p].theta)) - (observations[i].y * sin(particles[p].theta));
+      tr_obs.y = particles[p].y + (observations[i].x * sin(particles[p].theta)) + (observations[i].y * cos(particles[p].theta));
 
-      transformed_obs.push_back(tr_obs);
-  
-      //particles[p].weight = 1.0;
-      
-      double min_dist = sensor_range;
+      transformed_obs.push_back(LandmarkObs{ observations[i].id, tr_obs.x, tr_obs.y });
       
       // Landmark structure: (id, x, y) from map.h
       for (unsigned int j = 0; j < map_landmarks.landmark_list.size(); j++) {
@@ -190,46 +184,43 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         // Distance between landmark and transformed observations
         double current_dist = dist(transformed_obs[i].x, transformed_obs[i].y, landmark_x, landmark_y);
         
-        // Find closest landmark
-        //if (current_dist < min_dist) {
-          //association = landmark_id;
-          //min_dist = current_dist;
-        //}
-        
-        // Find landmarks within sensor range
-        if (current_dist < sensor_range) {    
-          
-          // Add landmarks to predictions
-          //predictions.push_back(LandmarkObs{ landmark_id, landmark_x, landmark_y });
-          
-          // Find closest landmark
-          //dataAssociation(predictions, transformed_obs);
-      
-          // Update particle weights, Lesson 19
-        
-          // x and y are the observations in map coordinates
-          double obs_x = transformed_obs[i].x;
-          double obs_y = transformed_obs[i].y;
-          // mu_x and mu_y are coordinates of closest landmarks
-          double mu_x = map_landmarks.landmark_list[landmark_id].x_f;
-          double mu_y = map_landmarks.landmark_list[landmark_id].y_f;
-      
-          // Multivariate Gaussian
-          const double pi = 3.14159265358979323846;
-          double gauss_norm = 1 / (2*pi*std_landmark[0]*std_landmark[1]);
-          double exponent = (pow(obs_x - mu_x, 2) / (2*pow(std_landmark[0], 2))) + (pow(obs_y - mu_y, 2) / (2*pow(std_landmark[1], 2)));
-          double current_weight = gauss_norm*exp(-exponent);
-      
-          if (current_weight > 0) {
-            particles[p].weight *= current_weight;
-          }
+        // Find closest landmark for each observation
+        if (current_dist < min_dist) {    
+          association = landmark_id;
+          min_dist = current_dist;
         }
-                
-        weights[p] = particles[p].weight;
-      
       }
-    }
-  }
+      
+      // Update particle weights, Lesson 19
+        
+      // x and y are the observations in map coordinates
+      double obs_x = transformed_obs[i].x;
+      double obs_y = transformed_obs[i].y;
+      // mu_x and mu_y are coordinates of closest landmarks
+      double mu_x = map_landmarks.landmark_list[association-1].x_f;
+      double mu_y = map_landmarks.landmark_list[association-1].y_f;
+        
+      if (association != -1) {
+      
+        // Multivariate Gaussian
+        const double pi = 3.14159265358979323846;
+        double gauss_norm = 1 / (2*pi*std_landmark[0]*std_landmark[1]);
+        double exponent = (pow(obs_x - mu_x, 2) / (2*pow(std_landmark[0], 2))) + (pow(obs_y - mu_y, 2) / (2*pow(std_landmark[1], 2)));
+        double current_weight = gauss_norm*exp(-exponent);
+      
+      if (current_weight > 0.001) {
+          particles[p].weight *= current_weight;
+        }
+      else {
+        particles[p].weight *= 0.0001;
+      }
+        // Clear transformed observations for next particle
+        transformed_obs.clear();
+      }
+    } 
+    // Update weights
+    weights[p] = particles[p].weight;
+  } 
 }
 
 void ParticleFilter::resample() {
@@ -246,11 +237,12 @@ void ParticleFilter::resample() {
   
   vector<Particle> resample_particles;
   
-  for (int i = 0; i < num_particles; i++)
-  {
-    
+  for (int i = 0; i < num_particles; i++) {
     resample_particles.push_back(particles[dist(gen)]);
   }
+  
+  // Replace original particles with resampled
+  particles = resample_particles;
 
 }
 
