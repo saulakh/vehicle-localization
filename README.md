@@ -1,20 +1,15 @@
-# Overview
-This repository contains all the code needed to complete the final project for the Localization course in Udacity's Self-Driving Car Nanodegree.
+## Kidnapped Vehicle
+Self Driving Car Nanodegree Project
 
-#### Submission
-All you will need to submit is your `src` directory. You should probably do a `git pull` before submitting to verify that your project passes the most up-to-date version of the grading code (there are some parameters in `src/main.cpp` which govern the requirements on accuracy and run time).
+### Project Overview
 
-## Project Introduction
-Your robot has been kidnapped and transported to a new location! Luckily it has a map of this location, a (noisy) GPS estimate of its initial location, and lots of (noisy) sensor and control data.
+The goal of this project is to implement a 2-D particle filter for vehicle localization. Given a map of the location, a noisy GPS estimate of its initial position, and noisy sensor and control data, a particle filter is used to find the vehicle's position with an accuracy of 3-10 cm.
 
-In this project you will implement a 2 dimensional particle filter in C++. Your particle filter will be given a map and some initial localization information (analogous to what a GPS would provide). At each time step your filter will also get observation and control data.
+### Project Build Instructions
 
-## Running the Code
-This project involves the Term 2 Simulator which can be downloaded [here](https://github.com/udacity/self-driving-car-sim/releases)
+This project uses the Term 2 Simulator which can be downloaded [here](https://github.com/udacity/self-driving-car-sim/releases).
 
-This repository includes two files that can be used to set up and install uWebSocketIO for either Linux or Mac systems. For windows you can use either Docker, VMware, or even Windows 10 Bash on Ubuntu to install uWebSocketIO.
-
-Once the install for uWebSocketIO is complete, the main program can be built and ran by doing the following from the project top directory.
+The main program can be built and run by doing the following from the project top directory:
 
 1. mkdir build
 2. cd build
@@ -22,122 +17,59 @@ Once the install for uWebSocketIO is complete, the main program can be built and
 4. make
 5. ./particle_filter
 
-Alternatively some scripts have been included to streamline this process, these can be leveraged by executing the following in the top directory of the project:
+### Particle Filter
 
-1. ./clean.sh
-2. ./build.sh
-3. ./run.sh
+The project file is _particle_filter.cpp,_ which is located in the ```src``` folder. The main steps included the initialization of random particles based on noisy GPS data, a prediction step based on previous velocity and yaw rate data, updating particle weights based on observations and landmark data, and resampling particles based on weight.
 
-Tips for setting up your environment can be found [here](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/23d376c7-0195-4276-bdf0-e02f1f3c665d)
+#### Initialization Step
 
-Note that the programs that need to be written to accomplish the project are src/particle_filter.cpp, and particle_filter.h
+The vehicle's position is initialized using noisy GPS measurements. After adding additional Gaussian noise to these measurements, these values are used to generate random particles, which represent estimates for the vehicle's position.
 
-The program main.cpp has already been filled out, but feel free to modify it.
+#### Prediction Step
 
-Here is the main protocol that main.cpp uses for uWebSocketIO in communicating with the simulator.
+Given the velocity and yaw rate from each previous timestep, the vehicle's position can be predicted one timestep later. These changes in position and rotation are applied to the particles, to track where each particle would have moved and calculate the error from its observations. The prediction step is calculated from the following equations:
 
-INPUT: values provided by the simulator to the c++ program
+![image](https://user-images.githubusercontent.com/74683142/125709021-0f0a1e7d-e77b-4e32-8875-39111977795a.png) ![image](https://user-images.githubusercontent.com/74683142/125709033-a3fe5257-511a-4d72-87e8-8f5d9f008475.png)
 
-// sense noisy position data from the simulator
+#### Update Step
 
-["sense_x"]
+The observations from the vehicle's perspective are transformed into each particle's perspective, using these homogenous coordinate transformation equations:
 
-["sense_y"]
+![image](https://user-images.githubusercontent.com/74683142/125710475-befa5173-a020-42a2-9fbb-66c918ebc480.png) 
 
-["sense_theta"]
+In this formula, xm and ym are the observations transformed to the map's coordinate system. The particle's position in the global map coordinate system is given by xp and yp, and theta is the rotation from the vehicle's frame to the particle's frame. Finally, xc and yc are the observations from the vehicle's coordinate system. Here are the simplified equations after matrix multiplication:
 
-// get the previous velocity and yaw rate to predict the particle's transitioned state
+![image](https://user-images.githubusercontent.com/74683142/125713299-cf72ea55-8da7-4e2b-95b7-44c699ba51fc.png)
 
-["previous_velocity"]
+The transformed observations are then used to find the error between the observed location from the particle's perspective and the landmark's true position. If a particle's position is close to the vehicle's position, the error would be minimal. This error is used to update each particle's weight using the Multivariate Gaussian formula:
 
-["previous_yawrate"]
+![image](https://user-images.githubusercontent.com/74683142/125712168-30ea8cd7-9146-4a57-8454-af2a32783a83.png)
 
-// receive noisy observation data from the simulator, in a respective list of x/y values
+In this formula, x and y are the positions of each transformed observation, and µx and µy are the positions of each associated landmark. The total weight of each particle is the product of its weight for each transformed observation.
 
-["sense_observations_x"]
+#### Resampling Step
+Using the Multivariate Gaussian formula, particles with a higher weight correspond to a higher probability. The particles are then resampled, by dropping particles with a low weight, and generating more particles with a higher weight. With each iteration, the particles begin to converge closer to the vehicle's true position, with a higher probability.
 
-["sense_observations_y"]
+### Project Discussion
 
+The main issue I had while working on this project was updating the particle weights correctly. For most iterations, all of the weight values were going to zero, so the particles were being treated as if they had an equal likelihood of representing the vehicle's position. Instead, the particles with a higher error should have been filtered out, while particles with a lower error should have been selected more frequently.
 
-OUTPUT: values provided by the c++ program to the simulator
+Initially, I was using ```particles[p].weight *= current_weight;``` to update the weights, which gave the majority of particles a zero weight.
 
-// best particle values used for calculating the error evaluation
-
-["best_particle_x"]
-
-["best_particle_y"]
-
-["best_particle_theta"]
-
-//Optional message data used for debugging particle's sensing and associations
-
-// for respective (x,y) sensed positions ID label
-
-["best_particle_associations"]
-
-// for respective (x,y) sensed positions
-
-["best_particle_sense_x"] <= list of sensed x positions
-
-["best_particle_sense_y"] <= list of sensed y positions
-
-
-Your job is to build out the methods in `particle_filter.cpp` until the simulator output says:
+To resolve this issue, I changed the way the code handled particle weights close to zero, specifically in lines 211-215 of particle_filter.cpp:
 
 ```
-Success! Your particle filter passed!
+if (current_weight > 0.001) {
+    particles[p].weight *= current_weight;
+}
+else {
+    particles[p].weight *= 0.0001;
+}
 ```
+This gave the particles a better range of weight values, instead of mostly zeros. The particle filter was able to start dropping particles with consistently low weights, and generate new particles with higher weights to localize the vehicle's position more accurately.
 
-# Implementing the Particle Filter
-The directory structure of this repository is as follows:
+### Project Results
 
-```
-root
-|   build.sh
-|   clean.sh
-|   CMakeLists.txt
-|   README.md
-|   run.sh
-|
-|___data
-|   |   
-|   |   map_data.txt
-|   
-|   
-|___src
-    |   helper_functions.h
-    |   main.cpp
-    |   map.h
-    |   particle_filter.cpp
-    |   particle_filter.h
-```
+After fixing the zero weights issue, the particle filter was able to track the vehicle's position within the desired accuracy. 
 
-The only file you should modify is `particle_filter.cpp` in the `src` directory. The file contains the scaffolding of a `ParticleFilter` class and some associated methods. Read through the code, the comments, and the header file `particle_filter.h` to get a sense for what this code is expected to do.
-
-If you are interested, take a look at `src/main.cpp` as well. This file contains the code that will actually be running your particle filter and calling the associated methods.
-
-## Inputs to the Particle Filter
-You can find the inputs to the particle filter in the `data` directory.
-
-#### The Map*
-`map_data.txt` includes the position of landmarks (in meters) on an arbitrary Cartesian coordinate system. Each row has three columns
-1. x position
-2. y position
-3. landmark id
-
-### All other data the simulator provides, such as observations and controls.
-
-> * Map data provided by 3D Mapping Solutions GmbH.
-
-## Success Criteria
-If your particle filter passes the current grading code in the simulator (you can make sure you have the current version at any time by doing a `git pull`), then you should pass!
-
-The things the grading code is looking for are:
-
-
-1. **Accuracy**: your particle filter should localize vehicle position and yaw to within the values specified in the parameters `max_translation_error` and `max_yaw_error` in `src/main.cpp`.
-
-2. **Performance**: your particle filter should complete execution within the time of 100 seconds.
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+![image](https://user-images.githubusercontent.com/74683142/125708967-98c3cabf-a269-49a0-8ddb-87e18f4312f8.png)
