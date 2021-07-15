@@ -29,7 +29,7 @@ The vehicle's position is initialized using noisy GPS measurements. After adding
 
 Given the velocity and yaw rate from each previous timestep, the vehicle's position can be predicted one timestep later. These changes in position and rotation are applied to the particles, to track where each particle would have moved and calculate the error from its observations. The prediction step is calculated from the following equations:
 
-![image](https://user-images.githubusercontent.com/74683142/125709021-0f0a1e7d-e77b-4e32-8875-39111977795a.png) ![image](https://user-images.githubusercontent.com/74683142/125709033-a3fe5257-511a-4d72-87e8-8f5d9f008475.png)
+![image](https://user-images.githubusercontent.com/74683142/125714016-0130ed94-dd41-47ec-94f3-e808e9aaba40.png) ![image](https://user-images.githubusercontent.com/74683142/125714034-3ec4a322-d6d9-4ff1-962d-d0a4156ce3ef.png)
 
 #### Update Step
 
